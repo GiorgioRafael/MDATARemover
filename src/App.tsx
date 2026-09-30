@@ -1,0 +1,212 @@
+import { LockKeyhole, ShieldCheck } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Brand } from './components/Brand'
+import { BatchPanel } from './components/BatchPanel'
+import { MetadataPanel } from './components/MetadataPanel'
+import { ResultPanel } from './components/ResultPanel'
+import { UploadDropzone } from './components/UploadDropzone'
+import { readImageInfo, removeMetadata, validateImage } from './lib/imageProcessing'
+import { inspectMetadata } from './lib/metadata'
+import { MAX_BATCH_FILES } from './lib/batch'
+import type { BatchImage, ImageInfo, ImageInspection, ProcessedImage, ProcessingOptions } from './types'
+
+export default function App() {
+  const [file, setFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [info, setInfo] = useState<ImageInfo | null>(null)
+  const [inspection, setInspection] = useState<ImageInspection | null>(null)
+  const [result, setResult] = useState<ProcessedImage | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [processing, setProcessing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [batch, setBatch] = useState<BatchImage[]>([])
+  const [batchProcessing, setBatchProcessing] = useState(false)
+  const [zipping, setZipping] = useState(false)
+  const [processingOptions, setProcessingOptions] = useState<ProcessingOptions>({ mode: 'metadata-only', preset: 'moderado', seed: 'tcc-001' })
+  const objectUrls = useRef<string[]>([])
+  const busy = useRef(false)
+  const archiveUrl = useRef<string | null>(null)
+
+  useEffect(() => () => objectUrls.current.forEach((url) => URL.revokeObjectURL(url)), [])
+
+  const revokeUrls = () => {
+    objectUrls.current.forEach((url) => URL.revokeObjectURL(url))
+    objectUrls.current = []
+    archiveUrl.current = null
+  }
+
+  const reset = () => {
+    if (busy.current) return
+    revokeUrls()
+    setFile(null); setPreviewUrl(null); setInfo(null); setInspection(null); setResult(null); setError(null)
+    setBatch([])
+  }
+
+  const processFile = async (next: File, options: ProcessingOptions) => {
+    setProcessing(true); setError(null)
+    try {
+      const processed = await removeMetadata(next, options)
+      objectUrls.current.push(processed.url)
+      setResult(processed)
+    }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível limpar a imagem.') }
+    finally { setProcessing(false) }
+  }
+
+  const selectFile = async (next: File, cleanImmediately = false) => {
+    if (busy.current) return
+    const validationError = validateImage(next)
+    if (validationError) { setError(validationError); return }
+    busy.current = true
+    revokeUrls()
+    setBatch([])
+    const url = URL.createObjectURL(next)
+    objectUrls.current.push(url)
+    setFile(next); setPreviewUrl(url); setInfo(null); setInspection(null); setResult(null); setError(null); setLoading(true)
+    try {
+      const [nextInfo, nextInspection] = await Promise.all([readImageInfo(next), inspectMetadata(next)])
+      setInfo(nextInfo); setInspection(nextInspection)
+      setLoading(false)
+      if (cleanImmediately) await processFile(next, { ...processingOptions, mode: 'metadata-only' })
+    } catch {
+      setError('Não foi possível ler esta imagem. Tente exportá-la novamente como JPG, PNG ou WEBP.')
+    } finally { setLoading(false); busy.current = false }
+  }
+
+  const process = async () => {
+    if (!file || busy.current) return
+    busy.current = true
+    try {
+      await processFile(file, processingOptions)
+    }
+    finally { busy.current = false }
+  }
+
+  const selectFiles = async (files: File[]) => {
+    if (busy.current || !files.length) return
+    if (files.length > MAX_BATCH_FILES) {
+      setError(`Selecione no máximo ${MAX_BATCH_FILES} fotos por vez. Você selecionou ${files.length}.`)
+      return
+    }
+    if (files.length === 1) { await selectFile(files[0]); return }
+    revokeUrls()
+    setFile(null); setPreviewUrl(null); setInfo(null); setInspection(null); setResult(null); setError(null)
+    setBatch(files.map((image, id) => {
+      const validationError = validateImage(image)
+      return { id, file: image, status: validationError ? 'error' : 'pending', error: validationError, result: null }
+    }))
+  }
+
+  const processBatch = async () => {
+    if (busy.current) return
+    const pending = batch.filter((image) => image.status !== 'done' && !validateImage(image.file))
+    if (!pending.length) return
+    busy.current = true
+    setBatchProcessing(true); setError(null)
+    if (archiveUrl.current) {
+      URL.revokeObjectURL(archiveUrl.current)
+      objectUrls.current = objectUrls.current.filter((url) => url !== archiveUrl.current)
+      archiveUrl.current = null
+    }
+    try {
+      for (const image of pending) {
+        setBatch((images) => images.map((item) => item.id === image.id ? { ...item, status: 'processing', error: null } : item))
+        try {
+          const processed = await removeMetadata(image.file, { ...processingOptions, mode: 'metadata-only' })
+          if (processed.inspection.items.length || processed.inspection.blocks.length) {
+            URL.revokeObjectURL(processed.url)
+            throw new Error('Ainda foram encontrados metadados. Tente limpar esta foto novamente.')
+          }
+          objectUrls.current.push(processed.url)
+          setBatch((images) => images.map((item) => item.id === image.id ? { ...item, status: 'done', result: processed } : item))
+        } catch (reason) {
+          setBatch((images) => images.map((item) => item.id === image.id ? { ...item, status: 'error', error: reason instanceof Error ? reason.message : 'Não foi possível limpar esta foto.' } : item))
+        }
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      }
+    } finally {
+      busy.current = false
+      setBatchProcessing(false)
+    }
+  }
+
+  const downloadZip = async () => {
+    if (busy.current) return
+    const results = batch.flatMap((image) => image.status === 'done' && image.result ? [image.result] : [])
+    if (!results.length) return
+    busy.current = true
+    setZipping(true); setError(null)
+    try {
+      if (!archiveUrl.current) {
+        const { createImageZip } = await import('./lib/zip')
+        const archive = await createImageZip(results)
+        archiveUrl.current = URL.createObjectURL(archive)
+        objectUrls.current.push(archiveUrl.current)
+      }
+      const link = document.createElement('a')
+      link.href = archiveUrl.current
+      link.download = 'cleanframe-fotos-limpas.zip'
+      link.hidden = true
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Não foi possível gerar o ZIP. Tente novamente ou baixe as fotos individualmente.')
+    } finally {
+      busy.current = false
+      setZipping(false)
+    }
+  }
+
+  return (
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="topbar-inner"><Brand /><div className="privacy-top"><LockKeyhole size={15} />Processamento local. Sua imagem não sai deste dispositivo.</div></div>
+      </header>
+      <main>
+        <section className="intro">
+          <h1>Prepare imagens limpas para publicar</h1>
+          <p>Remova todos os metadados das suas fotos antes de postar no TikTok.</p>
+        </section>
+
+        <UploadDropzone
+          files={batch.length ? batch.map((image) => image.file) : file ? [file] : []}
+          previewUrl={previewUrl}
+          onFiles={selectFiles}
+          onPasteImage={(image) => selectFile(image, true)}
+          onError={setError}
+          onClear={reset}
+          disabled={loading || processing || batchProcessing || zipping}
+        />
+        {error && <div className="error-banner" role="alert">{error}</div>}
+        {loading && <div className="loading-state"><span className="skeleton-line" /><span>Inspecionando metadados…</span></div>}
+
+        {batch.length > 0 && <BatchPanel images={batch} processing={batchProcessing} zipping={zipping} onProcess={processBatch} onDownloadZip={downloadZip} onReset={reset} />}
+
+        {file && previewUrl && info && inspection && !loading && (
+          <div className="workspace">
+            <MetadataPanel info={info} inspection={inspection} previewUrl={previewUrl} />
+            <ResultPanel
+              originalInfo={info}
+              originalPreviewUrl={previewUrl}
+              result={result}
+              processing={processing}
+              options={processingOptions}
+              onOptionsChange={setProcessingOptions}
+              onProcess={process}
+              onReset={reset}
+            />
+          </div>
+        )}
+
+        {!file && batch.length === 0 && (
+          <div className="empty-assurance">
+            <ShieldCheck size={20} />
+            <p><strong>Privacidade por padrão.</strong> Nenhum upload, conta ou servidor. O processamento acontece inteiramente no seu navegador.</p>
+          </div>
+        )}
+      </main>
+      <footer>CleanFrame · ferramenta interna para publicação segura</footer>
+    </div>
+  )
+}

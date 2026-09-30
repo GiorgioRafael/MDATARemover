@@ -1,0 +1,6 @@
+.git
+.qa
+docs
+node_modules
+dist
+.env*
