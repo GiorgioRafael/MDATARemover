@@ -64,6 +64,17 @@ main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; min-height: calc(1
 .text-button { margin-left: auto; border: 0; background: transparent; color: var(--green-700); font-weight: 700; cursor: pointer; font-size: 14px; }
 .dropzone-thumb-placeholder { width: 100%; height: 100%; display: grid; place-items: center; border-radius: 9px; background: var(--green-100); color: var(--green-800); }
 
+.quality-settings { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px 24px; background: white; border: 1px solid var(--line); border-radius: 10px; padding: 17px 20px; margin-bottom: 16px; }
+.quality-copy h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 5px; font-size: 15px; color: var(--green-900); }
+.quality-copy p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.quality-settings > label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; font-weight: 600; color: var(--muted); }
+.quality-settings select { min-height: 42px; border: 1px solid var(--line); border-radius: 7px; padding: 8px 28px 8px 10px; background: white; color: var(--green-900); font: inherit; font-size: 13px; }
+.quality-settings select:disabled { opacity: .65; }
+.quality-note { grid-column: 1 / -1; margin: 0; font-size: 11px; line-height: 1.5; color: var(--muted); }
+.enhancement-progress { display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid var(--line); background: var(--green-50); border-radius: 8px; margin-top: 15px; padding: 12px 16px; }
+.enhancement-progress > div { display: grid; flex: 1; gap: 9px; font-size: 13px; color: var(--green-900); }
+.enhancement-progress progress { width: 100%; height: 7px; accent-color: var(--green-700); }
+.cancel-processing { flex: none; border: 1px solid var(--line); border-radius: 7px; padding: 9px 12px; min-height: 40px; color: var(--green-900); background: white; font: inherit; font-size: 12px; cursor: pointer; }
 .batch-panel { margin-top: 20px; }
 .batch-count { flex: none; padding: 7px 10px; border-radius: 7px; color: var(--green-800); background: var(--green-100); font-size: 12px; font-weight: 700; }
 .batch-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
@@ -206,6 +217,9 @@ footer { text-align: center; font-size: 11px; color: #98a0aa; padding: 25px 20px
 }
 
 @media (max-width: 460px) {
+  .quality-settings { grid-template-columns: 1fr; padding: 15px; gap: 12px; }
+  .quality-note { grid-column: auto; }
+  .enhancement-progress { flex-direction: column; align-items: stretch; gap: 12px; }
   .batch-actions { align-items: stretch; }
   .batch-actions .primary-button, .batch-actions .secondary-button { width: 100%; }
   .batch-reset { margin-left: 0; }

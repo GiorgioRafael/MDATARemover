@@ -32,16 +32,16 @@ export function ResultPanel({ originalInfo, originalPreviewUrl, result, processi
             <input
               type="radio"
               name="processing-mode"
-              checked={options.mode === 'metadata-only'}
+              checked={options.mode === 'metadata-only'} disabled={processing}
               onChange={() => onOptionsChange({ ...options, mode: 'metadata-only' })}
             />
-            <span><strong>Somente privacidade</strong><small>Remove metadados sem alterar intencionalmente a aparência.</small></span>
+            <span><strong>Somente privacidade</strong><small>{options.upscale ? 'Remove metadados e aplica a melhoria de qualidade selecionada.' : 'Remove metadados sem alterar intencionalmente a aparência.'}</small></span>
           </label>
           <label className="mode-option research">
             <input
               type="radio"
               name="processing-mode"
-              checked={options.mode === 'robustness-study'}
+              checked={options.mode === 'robustness-study'} disabled={processing}
               onChange={() => onOptionsChange({ ...options, mode: 'robustness-study' })}
             />
             <span><strong><Beaker size={15} /> Laboratório de robustez</strong><small>Aplica transformações controladas e uma marca d’água acadêmica.</small></span>
@@ -49,14 +49,14 @@ export function ResultPanel({ originalInfo, originalPreviewUrl, result, processi
           {options.mode === 'robustness-study' && (
             <div className="research-settings">
               <label>Nível do ensaio
-                <select value={options.preset} onChange={(event) => onOptionsChange({ ...options, preset: event.target.value as RobustnessPreset })}>
+                <select disabled={processing} value={options.preset} onChange={(event) => onOptionsChange({ ...options, preset: event.target.value as RobustnessPreset })}>
                   <option value="leve">Leve</option>
                   <option value="moderado">Moderado</option>
                   <option value="intenso">Intenso</option>
                 </select>
               </label>
               <label>Semente reproduzível
-                <input value={options.seed} maxLength={64} onChange={(event) => onOptionsChange({ ...options, seed: event.target.value || 'tcc-001' })} />
+                <input disabled={processing} value={options.seed} maxLength={64} onChange={(event) => onOptionsChange({ ...options, seed: event.target.value || 'tcc-001' })} />
               </label>
               <p>Para avaliação controlada no detector da pesquisa. Não mede nem garante evasão em plataformas reais.</p>
             </div>
@@ -64,7 +64,7 @@ export function ResultPanel({ originalInfo, originalPreviewUrl, result, processi
         </div>
         <button className="primary-button" type="button" onClick={onProcess} disabled={processing}>
           {processing ? <LoaderCircle className="spinner" size={19} /> : <Sparkles size={19} />}
-          {processing ? 'Processando imagem…' : options.mode === 'robustness-study' ? 'Gerar amostra de pesquisa' : 'Remover todos os metadados'}
+          {processing ? 'Processando imagem…' : options.mode === 'robustness-study' ? 'Gerar amostra de pesquisa' : options.upscale ? `Limpar e melhorar ${options.upscale}×` : 'Remover todos os metadados'}
         </button>
       </section>
     )
@@ -88,6 +88,7 @@ export function ResultPanel({ originalInfo, originalPreviewUrl, result, processi
           <div><dt>Formato</dt><dd>{result.info.type.replace('image/', '').toUpperCase()}</dd></div>
           <div><dt>Tamanho</dt><dd>{formatBytes(result.info.size)} <span className="size-change">({sizeComparison})</span></dd></div>
           <div><dt>Dimensões</dt><dd>{formatDimensions(result.info.width, result.info.height)}</dd></div>
+          {result.report.upscale && <div><dt>Melhoria de qualidade</dt><dd>Real-ESRGAN {result.report.upscale.scale}× · original {formatDimensions(result.report.upscale.originalWidth, result.report.upscale.originalHeight)}</dd></div>}
           {outputFingerprint && <div><dt>Hash do arquivo novo</dt><dd>{outputFingerprint}</dd></div>}
         </dl>
       </div>
@@ -101,7 +102,8 @@ export function ResultPanel({ originalInfo, originalPreviewUrl, result, processi
       )}
       <p className="detection-note">O hash binário muda ao gerar o arquivo novo, mas redes sociais ainda podem reconhecer a imagem pela semelhança visual dos pixels.</p>
       <a className="primary-button" href={result.url} download={result.name}><Download size={19} />Baixar imagem limpa</a>
-      <button className="secondary-button" type="button" onClick={onReset}><RotateCcw size={18} />Limpar outra imagem</button>
+      {options.upscale !== result.report.upscale?.scale && <button className="secondary-button" type="button" onClick={onProcess} disabled={processing}>{processing ? <LoaderCircle className="spinner" size={18} /> : <Sparkles size={18} />}{processing ? 'Processando imagem…' : options.upscale ? `Aplicar melhoria ${options.upscale}×` : 'Refazer sem ampliação'}</button>}
+      <button className="secondary-button" type="button" onClick={onReset} disabled={processing}><RotateCcw size={18} />Limpar outra imagem</button>
     </section>
   )
 }

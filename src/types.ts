@@ -42,11 +42,19 @@ export interface ImageInfo {
 
 export type ProcessingMode = 'metadata-only' | 'robustness-study'
 export type RobustnessPreset = 'leve' | 'moderado' | 'intenso'
+export type UpscaleScale = 2 | 4
+export interface ProcessingProgress {
+  message: string
+  percent?: number
+}
 
 export interface ProcessingOptions {
   mode: ProcessingMode
   preset: RobustnessPreset
   seed: string
+  upscale?: UpscaleScale
+  onProgress?: (progress: ProcessingProgress) => void
+  signal?: AbortSignal
 }
 
 export interface ProcessingReport {
@@ -55,6 +63,7 @@ export interface ProcessingReport {
   seed?: string
   transformations: string[]
   academicWatermark: boolean
+  upscale?: { algorithm: 'Real-ESRGAN'; scale: UpscaleScale; originalWidth: number; originalHeight: number; backend: 'webgpu' | 'wasm' }
 }
 
 export interface ProcessedImage {

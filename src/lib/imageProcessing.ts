@@ -1,4 +1,4 @@
-import type { ImageInfo, ProcessedImage, ProcessingOptions } from '../types'
+import type { ImageInfo, ProcessedImage, ProcessingOptions, ProcessingReport } from '../types'
 import { cleanFileName } from './format'
 import { stripMetadataBlocks } from './containerMetadata'
 import { inspectMetadata } from './metadata'
@@ -51,12 +51,14 @@ export async function removeMetadata(
   file: File,
   options: ProcessingOptions = { mode: 'metadata-only', preset: 'leve', seed: 'tcc-001' },
 ): Promise<ProcessedImage> {
+  options.signal?.throwIfAborted()
   const decoded = await loadImage(file)
-  const canvas = document.createElement('canvas')
+  let canvas = document.createElement('canvas')
+  const canvases = [canvas]
   try {
     canvas.width = decoded.width
     canvas.height = decoded.height
-    const context = canvas.getContext('2d', { alpha: file.type !== 'image/jpeg' })
+    let context = canvas.getContext('2d', { alpha: file.type !== 'image/jpeg', willReadFrequently: Boolean(options.upscale || options.mode === 'robustness-study') })
     if (!context) throw new Error('Seu navegador não oferece suporte ao processamento desta imagem.')
     if (file.type === 'image/jpeg') {
       context.fillStyle = '#ffffff'
@@ -64,19 +66,42 @@ export async function removeMetadata(
     }
     let transformations = ['Reconstrução dos pixels em um novo arquivo', 'Remoção de blocos EXIF, XMP, IPTC, ICC e texto']
     let quality = 0.95
+    let upscale: ProcessingReport['upscale']
+    context.drawImage(decoded.source, 0, 0, canvas.width, canvas.height)
+    decoded.close?.()
+    decoded.close = undefined
+    if (options.upscale) {
+      options.onProgress?.({ message: 'Preparando melhoria de qualidade…' })
+      const { upscaleCanvas } = await import('./upscale')
+      const enhanced = await upscaleCanvas(canvas, options.upscale, options)
+      canvas.width = 0; canvas.height = 0
+      canvas = enhanced.canvas
+      canvases.push(canvas)
+      context = canvas.getContext('2d')!
+      upscale = { algorithm: 'Real-ESRGAN', scale: options.upscale, originalWidth: decoded.width, originalHeight: decoded.height, backend: enhanced.backend }
+      transformations.push(`Super-resolução Real-ESRGAN ${options.upscale}× com redução de ruído equilibrada`)
+      quality = 0.97
+    }
+    options.signal?.throwIfAborted()
     if (options.mode === 'robustness-study') {
-      const recipe = drawRobustnessStudy(context, decoded.source, canvas.width, canvas.height, options.preset, options.seed)
+      const visualSource = canvas
+      canvas = document.createElement('canvas')
+      canvases.push(canvas)
+      canvas.width = visualSource.width; canvas.height = visualSource.height
+      context = canvas.getContext('2d', { alpha: file.type !== 'image/jpeg' })!
+      const recipe = drawRobustnessStudy(context, visualSource, canvas.width, canvas.height, options.preset, options.seed)
       transformations = [...transformations, ...describeRecipe(recipe)]
       quality = recipe.quality
-    } else {
-      context.drawImage(decoded.source, 0, 0, canvas.width, canvas.height)
     }
 
+    options.onProgress?.({ message: 'Removendo metadados e verificando o arquivo final…' })
     const outputType = file.type
     const encoded = await canvasToBlob(canvas, outputType, outputType === 'image/jpeg' || outputType === 'image/webp' ? quality : undefined)
     const blob = await stripMetadataBlocks(encoded)
-    const name = cleanFileName(file.name, outputType)
+    const name = cleanFileName(file.name, outputType).replace(/-limpa\./, options.upscale ? `-limpa-${options.upscale}x.` : '-limpa.')
     const inspection = await inspectMetadata(blob)
+    options.signal?.throwIfAborted()
+    if (inspection.items.length || inspection.blocks.length) throw new Error('Ainda foram encontrados metadados. Tente limpar esta imagem novamente.')
     return {
       blob,
       url: URL.createObjectURL(blob),
@@ -89,11 +114,11 @@ export async function removeMetadata(
         seed: options.mode === 'robustness-study' ? options.seed : undefined,
         transformations,
         academicWatermark: options.mode === 'robustness-study',
+        upscale,
       },
     }
   } finally {
     decoded.close?.()
-    canvas.width = 0
-    canvas.height = 0
+    for (const surface of canvases) { surface.width = 0; surface.height = 0 }
   }
 }

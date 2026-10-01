@@ -51,6 +51,63 @@ beforeEach(() => {
   vi.mocked(createImageZip).mockResolvedValue(new Blob(['zip'], { type: 'application/zip' }))
 })
 
+describe('melhoria de qualidade', () => {
+  it('aplica a ampliação escolhida na tela inicial também às imagens coladas', async () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Ampliação'), { target: { value: '4' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Colar imagem' }))
+    await screen.findByRole('link', { name: 'Baixar imagem limpa' })
+    expect(removeMetadata).toHaveBeenCalledWith(expect.any(File), expect.objectContaining({ mode: 'metadata-only', upscale: 4, signal: expect.any(AbortSignal), onProgress: expect.any(Function) }))
+  })
+
+  it('usa a mesma ampliação no lote e bloqueia alterações enquanto processa', async () => {
+    let finish!: (value: ProcessedImage) => void
+    vi.mocked(removeMetadata).mockReturnValueOnce(new Promise((resolve) => { finish = resolve }))
+    const { container } = render(<App />)
+    fireEvent.change(screen.getByLabelText('Ampliação'), { target: { value: '2' } })
+    const files = [new File(['a'], 'a.png', { type: 'image/png' }), new File(['b'], 'b.png', { type: 'image/png' })]
+    fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files } })
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar 2 fotos' }))
+    expect(screen.getByLabelText('Ampliação')).toBeDisabled()
+    await act(async () => finish(result))
+    await waitFor(() => expect(screen.getByText('2 de 2 limpas')).toBeVisible())
+    expect(vi.mocked(removeMetadata).mock.calls.every((call) => call[1]?.upscale === 2)).toBe(true)
+    expect(screen.getByLabelText('Ampliação')).toBeDisabled()
+  })
+
+  it('cancela o processamento e permite tentar novamente sem liberar saída parcial', async () => {
+    vi.mocked(removeMetadata).mockImplementationOnce((_file, options) => new Promise((_resolve, reject) => {
+      options!.signal!.addEventListener('abort', () => reject(new DOMException('Cancelado', 'AbortError')), { once: true })
+    }))
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Ampliação'), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Colar imagem' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar processamento' }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Processamento cancelado'))
+    expect(screen.queryByRole('link', { name: 'Baixar imagem limpa' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Limpar e melhorar 2×' })).toBeEnabled()
+  })
+
+  it('retoma um lote cancelado sem reprocessar as fotos concluídas', async () => {
+    vi.mocked(removeMetadata).mockResolvedValueOnce(result).mockImplementationOnce((_file, options) => new Promise((_resolve, reject) => {
+      options!.signal!.addEventListener('abort', () => reject(new DOMException('Cancelado', 'AbortError')), { once: true })
+    }))
+    const { container } = render(<App />)
+    const files = ['a', 'b', 'c'].map((name) => new File(['photo'], `${name}.png`, { type: 'image/png' }))
+    fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files } })
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar 3 fotos' }))
+    await waitFor(() => expect(removeMetadata).toHaveBeenCalledTimes(2))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar processamento' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Limpar 2 fotos' })).toBeEnabled())
+    expect(screen.getByRole('link', { name: 'Baixar a.png' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Baixar todas (.zip)' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar 2 fotos' }))
+    await waitFor(() => expect(screen.getByText('3 de 3 limpas')).toBeVisible())
+    expect(removeMetadata).toHaveBeenCalledTimes(4)
+    expect(vi.mocked(removeMetadata).mock.calls.filter((call) => call[0] === files[0])).toHaveLength(1)
+  })
+})
+
 describe('limpeza em lote', () => {
   const photos = (count: number) => Array.from({ length: count }, (_, index) => new File(['image'], `foto-${index}.png`, { type: 'image/png' }))
 

@@ -19,7 +19,7 @@ const BatchRow = memo(function BatchRow({ image }: { image: BatchImage }) {
       {image.status === 'done' && image.result ? <img src={image.result.url} alt="" loading="lazy" /> : <span className="batch-thumbnail"><ImageIcon size={22} /></span>}
       <div className="batch-file-copy">
         <strong title={image.file.name}>{image.file.name}</strong>
-        <span>{formatBytes(image.file.size)}{image.result ? ` → ${formatBytes(image.result.info.size)}` : ''}</span>
+        <span>{formatBytes(image.file.size)}{image.result ? ` → ${formatBytes(image.result.info.size)}` : ''}{image.result?.report.upscale ? ` · ${image.result.info.width} × ${image.result.info.height} px · IA ${image.result.report.upscale.scale}×` : ''}</span>
         {image.error && <p role="alert">{image.error}</p>}
       </div>
       <span className="batch-status">
