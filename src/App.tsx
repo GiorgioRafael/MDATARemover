@@ -38,6 +38,13 @@ export default function App() {
     archiveUrl.current = null
   }
 
+  const invalidateArchive = () => {
+    if (!archiveUrl.current) return
+    URL.revokeObjectURL(archiveUrl.current)
+    objectUrls.current = objectUrls.current.filter((url) => url !== archiveUrl.current)
+    archiveUrl.current = null
+  }
+
   const reset = () => {
     if (busy.current) return
     revokeUrls()
@@ -90,19 +97,33 @@ export default function App() {
     finally { busy.current = false }
   }
 
-  const selectFiles = async (files: File[]) => {
+  const selectFiles = async (files: File[], selection: 'add' | 'replace' = 'add') => {
     if (busy.current || !files.length) return
-    if (files.length > MAX_BATCH_FILES) {
-      setError(`Selecione no máximo ${MAX_BATCH_FILES} fotos por vez. Você selecionou ${files.length}.`)
+    const reusableResult = result?.report.mode === 'metadata-only'
+      && result.report.upscale?.scale === processingOptions.upscale
+      && !result.inspection.items.length && !result.inspection.blocks.length ? result : null
+    const previous: BatchImage[] = selection === 'replace' ? [] : batch.length ? batch : file ? [
+      { id: 0, file, status: reusableResult ? 'done' : 'pending', error: null, result: reusableResult },
+    ] : []
+    const total = previous.length + files.length
+    if (total > MAX_BATCH_FILES) {
+      setError(`Selecione no máximo ${MAX_BATCH_FILES} fotos por vez. Você selecionou ${total}.${previous.length ? ' As fotos anteriores foram mantidas.' : ''}`)
       return
     }
-    if (files.length === 1) { await selectFile(files[0]); return }
-    revokeUrls()
+    if (total === 1) { await selectFile(files[0]); return }
+    if (selection === 'replace') revokeUrls()
+    else {
+      invalidateArchive()
+      const discardedUrls = [previewUrl, !reusableResult ? result?.url : null].filter((url): url is string => Boolean(url))
+      discardedUrls.forEach((url) => URL.revokeObjectURL(url))
+      objectUrls.current = objectUrls.current.filter((url) => !discardedUrls.includes(url))
+    }
     setFile(null); setPreviewUrl(null); setInfo(null); setInspection(null); setResult(null); setError(null)
-    setBatch(files.map((image, id) => {
+    const firstId = previous.reduce((maximum, image) => Math.max(maximum, image.id), -1) + 1
+    setBatch([...previous, ...files.map((image, index): BatchImage => {
       const validationError = validateImage(image)
-      return { id, file: image, status: validationError ? 'error' : 'pending', error: validationError, result: null }
-    }))
+      return { id: firstId + index, file: image, status: validationError ? 'error' : 'pending', error: validationError, result: null }
+    })])
   }
 
   const processBatch = async () => {
@@ -112,11 +133,7 @@ export default function App() {
     busy.current = true
     controller.current = new AbortController()
     setBatchProcessing(true); setError(null)
-    if (archiveUrl.current) {
-      URL.revokeObjectURL(archiveUrl.current)
-      objectUrls.current = objectUrls.current.filter((url) => url !== archiveUrl.current)
-      archiveUrl.current = null
-    }
+    invalidateArchive()
     try {
       for (const image of pending) {
         if (controller.current.signal.aborted) break

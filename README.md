@@ -49,6 +49,8 @@ Na tela inicial, clique em **Colar imagem** ou use **Ctrl + V** (**⌘ + V** no 
 
 Selecione ou arraste de 2 a **100 fotos** JPG, PNG ou WEBP de até **25 MB por foto**. Clique em **Limpar fotos** para acompanhar o progresso de cada arquivo. O processamento ocorre uma foto por vez no navegador. Arquivos inválidos ou falhas individuais não interrompem as demais fotos.
 
+Você pode selecionar todas de uma vez ou usar **Adicionar fotos** para montar o lote por etapas, inclusive uma foto por seleção. Arrastar novas fotos também acrescenta ao lote. As fotos anteriores e seus resultados já limpos são preservados; o ZIP é atualizado ao incluir novas imagens. **Substituir seleção** troca explicitamente todo o conjunto. O limite de 100 vale para o total acumulado.
+
 Cada resultado verificado oferece **Baixar** individualmente. O botão **Baixar todas (.zip)** reúne as fotos limpas, com nomes únicos quando houver arquivos repetidos. Fotos com erro ficam fora do ZIP e podem ser tentadas novamente quando o formato e o tamanho forem válidos. O modo em lote utiliza a limpeza de metadados, sem as transformações do laboratório.
 
 Se a melhoria de qualidade estiver ativa, ela é aplicada sequencialmente a cada foto. A ampliação fica fixa após o primeiro resultado do lote; para mudá-la, inicie um novo lote. O cancelamento mantém os resultados concluídos e permite continuar as demais fotos.

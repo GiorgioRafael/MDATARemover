@@ -63,6 +63,11 @@ main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; min-height: calc(1
 .dropzone-file-copy span { color: var(--muted); font-size: 13px; margin-top: 3px; }
 .text-button { margin-left: auto; border: 0; background: transparent; color: var(--green-700); font-weight: 700; cursor: pointer; font-size: 14px; }
 .dropzone-thumb-placeholder { width: 100%; height: 100%; display: grid; place-items: center; border-radius: 9px; background: var(--green-100); color: var(--green-800); }
+.dropzone-actions { display: flex; flex-direction: column; align-items: stretch; flex: none; gap: 5px; margin-left: auto; }
+.add-photos-button { display: inline-flex; justify-content: center; align-items: center; gap: 7px; min-height: 42px; padding: 9px 14px; border: 1px solid var(--green-700); border-radius: 7px; background: white; color: var(--green-800); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.replace-photos-button { min-height: 36px; padding: 5px 9px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.dropzone-actions button:disabled { opacity: .65; cursor: wait; }
+.selection-hint { margin: 0; padding: 0 16px 14px; text-align: center; color: var(--muted); font-size: 12px; line-height: 1.5; }
 
 .quality-settings { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px 24px; background: white; border: 1px solid var(--line); border-radius: 10px; padding: 17px 20px; margin-bottom: 16px; }
 .quality-copy h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 5px; font-size: 15px; color: var(--green-900); }
@@ -217,6 +222,9 @@ footer { text-align: center; font-size: 11px; color: #98a0aa; padding: 25px 20px
 }
 
 @media (max-width: 460px) {
+  .dropzone-file { flex-wrap: wrap; }
+  .dropzone-file-copy { flex: 1; }
+  .dropzone-actions { width: 100%; margin-left: 0; }
   .quality-settings { grid-template-columns: 1fr; padding: 15px; gap: 12px; }
   .quality-note { grid-column: auto; }
   .enhancement-progress { flex-direction: column; align-items: stretch; gap: 12px; }

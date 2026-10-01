@@ -8,7 +8,7 @@ interface Props {
   files: File[]
   previewUrl: string | null
   disabled?: boolean
-  onFiles: (files: File[]) => void
+  onFiles: (files: File[], selection?: 'add' | 'replace') => void
   onPasteImage: (file: File) => Promise<void>
   onError: (message: string) => void
   onClear: () => void
@@ -18,6 +18,7 @@ export function UploadDropzone({ files, previewUrl, disabled, onFiles, onPasteIm
   const file = files[0] ?? null
   const multiple = files.length > 1
   const inputRef = useRef<HTMLInputElement>(null)
+  const selectionMode = useRef<'add' | 'replace'>('add')
   const clipboardBusy = useRef(false)
   const [dragging, setDragging] = useState(false)
   const [pasting, setPasting] = useState(false)
@@ -57,9 +58,15 @@ export function UploadDropzone({ files, previewUrl, disabled, onFiles, onPasteIm
     }
   }
 
-  const receive = (files: FileList | null) => {
+  const receive = (files: FileList | null, selection: 'add' | 'replace' = 'add') => {
     if (busy || clipboardBusy.current) return
-    if (files?.length) onFiles(Array.from(files))
+    if (files?.length) onFiles(Array.from(files), selection)
+  }
+
+  const chooseFiles = (selection: 'add' | 'replace') => {
+    if (busy || clipboardBusy.current) return
+    selectionMode.current = selection
+    inputRef.current?.click()
   }
 
   return (
@@ -75,7 +82,7 @@ export function UploadDropzone({ files, previewUrl, disabled, onFiles, onPasteIm
         type="file"
         multiple
         accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-        onChange={(event) => { receive(event.target.files); event.target.value = '' }}
+        onChange={(event) => { receive(event.target.files, selectionMode.current); selectionMode.current = 'add'; event.target.value = '' }}
         disabled={busy}
       />
       {file && (previewUrl || multiple) ? (
@@ -90,11 +97,14 @@ export function UploadDropzone({ files, previewUrl, disabled, onFiles, onPasteIm
             <strong>{multiple ? `${files.length} fotos selecionadas` : file.name}</strong>
             <span>{formatBytes(files.reduce((total, image) => total + image.size, 0))}{multiple ? ' no total' : ''}</span>
           </div>
-          <button className="text-button" type="button" onClick={() => inputRef.current?.click()} disabled={busy}>{multiple ? 'Trocar fotos' : 'Trocar imagem'}</button>
+          <div className="dropzone-actions">
+            <button className="add-photos-button" type="button" onClick={() => chooseFiles('add')} disabled={busy}><ImagePlus size={17} />Adicionar fotos</button>
+            <button className="replace-photos-button" type="button" onClick={() => chooseFiles('replace')} disabled={busy}>Substituir seleção</button>
+          </div>
         </div>
       ) : (
         <div className="dropzone-start">
-          <button className="dropzone-empty" type="button" onClick={() => inputRef.current?.click()} disabled={busy}>
+          <button className="dropzone-empty" type="button" onClick={() => chooseFiles('add')} disabled={busy}>
             <span className="upload-icon"><ImagePlus size={25} /></span>
             <span><strong>Arraste até {MAX_BATCH_FILES} fotos aqui</strong></span>
             <span className="select-copy">ou selecione do computador</span>
@@ -109,6 +119,7 @@ export function UploadDropzone({ files, previewUrl, disabled, onFiles, onPasteIm
           </div>
         </div>
       )}
+      <p className="selection-hint">{file ? `${files.length} de ${MAX_BATCH_FILES} fotos · você pode adicionar mais sem perder as anteriores.` : 'Selecione várias fotos de uma vez ou adicione uma por vez. No computador, use Ctrl / ⌘ ou Shift para selecionar várias.'}</p>
     </div>
   )
 }

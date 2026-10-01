@@ -117,6 +117,85 @@ describe('limpeza em lote', () => {
     return container
   }
 
+  it('acumula fotos selecionadas uma por vez e mantém a primeira no lote', async () => {
+    const files = photos(3)
+    const container = select([files[0]])
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Adicionar fotos' })).toBeEnabled())
+    fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [files[1]] } })
+    expect(screen.getByText('2 fotos selecionadas')).toBeVisible()
+    fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [files[2]] } })
+    expect(screen.getByText('3 fotos selecionadas')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar 3 fotos' }))
+    await waitFor(() => expect(screen.getByText('3 de 3 limpas')).toBeVisible())
+    expect(vi.mocked(removeMetadata).mock.calls.map((call) => call[0])).toEqual(files)
+  })
+
+  it('acrescenta fotos arrastadas sem substituir o lote existente', () => {
+    const container = select(photos(2))
+    fireEvent.drop(container.querySelector('.dropzone')!, { dataTransfer: { files: [new File(['image'], 'nova.png', { type: 'image/png' })] } })
+    expect(screen.getByText('3 fotos selecionadas')).toBeVisible()
+    expect(screen.getByText('foto-0.png')).toBeVisible()
+    expect(screen.getByText('foto-1.png')).toBeVisible()
+    expect(screen.getByText('nova.png')).toBeVisible()
+  })
+
+  it('aplica o limite ao total acumulado sem perder as fotos anteriores', () => {
+    const container = select(photos(99))
+    fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: photos(2) } })
+    expect(screen.getByRole('alert')).toHaveTextContent('Você selecionou 101')
+    expect(screen.getByRole('alert')).toHaveTextContent('As fotos anteriores foram mantidas')
+    expect(screen.getByText('99 fotos selecionadas')).toBeVisible()
+    fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: photos(1) } })
+    expect(screen.getByText('100 fotos selecionadas')).toBeVisible()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('substitui o lote apenas quando o usuário escolhe Substituir seleção', async () => {
+    const inputClick = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {})
+    const container = select(photos(2))
+    fireEvent.click(screen.getByRole('button', { name: 'Substituir seleção' }))
+    expect(inputClick).toHaveBeenCalledTimes(1)
+    fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [new File(['image'], 'substituta.png', { type: 'image/png' })] } })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Adicionar fotos' })).toBeEnabled())
+    expect(screen.queryByRole('heading', { name: 'Limpeza em lote' })).not.toBeInTheDocument()
+    expect(screen.queryByText('foto-0.png')).not.toBeInTheDocument()
+    expect(container.querySelector('.dropzone-file-copy')).toHaveTextContent('substituta.png')
+  })
+
+  it('preserva resultados concluídos e recria o ZIP ao acrescentar fotos', async () => {
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    const files = photos(3)
+    const container = select(files.slice(0, 2))
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar 2 fotos' }))
+    await waitFor(() => expect(screen.getByText('2 de 2 limpas')).toBeVisible())
+    fireEvent.click(screen.getByRole('button', { name: 'Baixar todas (.zip)' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Adicionar fotos' })).toBeEnabled())
+    expect(createImageZip).toHaveBeenCalledTimes(1)
+    fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [files[2]] } })
+    expect(screen.getByText('3 fotos selecionadas')).toBeVisible()
+    expect(screen.getAllByRole('link', { name: /^Baixar foto-/ })).toHaveLength(2)
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith(result.url)
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar 1 foto' }))
+    await waitFor(() => expect(screen.getByText('3 de 3 limpas')).toBeVisible())
+    expect(removeMetadata).toHaveBeenCalledTimes(3)
+    fireEvent.click(screen.getByRole('button', { name: 'Baixar todas (.zip)' }))
+    await waitFor(() => expect(anchorClick).toHaveBeenCalledTimes(2))
+    expect(createImageZip).toHaveBeenLastCalledWith([result, result, result])
+  })
+
+  it('leva o resultado de uma imagem já limpa para o lote sem reprocessá-la', async () => {
+    const files = photos(2)
+    const container = select([files[0]])
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover todos os metadados' }))
+    await screen.findByRole('link', { name: 'Baixar imagem limpa' })
+    fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [files[1]] } })
+    expect(screen.getByText('1 de 2 limpas')).toBeVisible()
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith(result.url)
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar 1 foto' }))
+    await waitFor(() => expect(screen.getByText('2 de 2 limpas')).toBeVisible())
+    expect(removeMetadata).toHaveBeenCalledTimes(2)
+  })
+
   it('aceita 100 fotos e libera o download individual de cada resultado verificado', async () => {
     const container = select(photos(100))
     expect(screen.getByText('100 fotos selecionadas')).toBeVisible()
