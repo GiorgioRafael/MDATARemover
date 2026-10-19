@@ -57,6 +57,7 @@ const builderArguments = [
   process.platform === 'win32' ? '--win' : '--mac',
   process.platform === 'win32' ? 'nsis' : 'dmg',
   `--${process.arch}`,
+  '--config.electronDist=node_modules/electron/dist',
   '--config.directories.output=release/local-install',
   '--publish', 'never',
 ]
@@ -113,6 +114,17 @@ function run(command, args, description, options = {}) {
 const npmCli = findNpmCli()
 if (!existsSync(builderPath)) {
   fail('faltam dependências. Execute npm ci ou abra o arquivo Instalar da sua plataforma.')
+}
+
+// The local installer packages only the runtime architecture already installed.
+const electronPath = join(rootDirectory, 'node_modules', 'electron', 'dist',
+  process.platform === 'win32' ? 'electron.exe' : 'Electron.app/Contents/MacOS/Electron')
+const runtime = spawnSync(electronPath, ['-p', 'process.arch'], {
+  env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+  encoding: 'utf8', windowsHide: true,
+})
+if (runtime.error || runtime.status !== 0 || runtime.stdout.trim() !== process.arch) {
+  fail('o runtime Electron instalado não corresponde à arquitetura deste Node.js. Execute npm ci com a arquitetura padrão e tente novamente.')
 }
 
 run(process.execPath, [npmCli, 'run', 'desktop:build'], 'Compilando o aplicativo…')

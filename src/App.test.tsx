@@ -194,6 +194,7 @@ describe('limpeza em lote', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Limpar 2 fotos' }))
     await waitFor(() => expect(screen.getByText('2 de 2 limpas')).toBeVisible())
     fireEvent.click(screen.getByRole('button', { name: 'Baixar todas (.zip)' }))
+    await waitFor(() => expect(anchorClick).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Adicionar fotos' })).toBeEnabled())
     expect(createImageZip).toHaveBeenCalledTimes(1)
     fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [files[2]] } })

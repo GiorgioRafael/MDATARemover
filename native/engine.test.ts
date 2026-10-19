@@ -1,12 +1,25 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { chmod, link, mkdtemp, open, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { chmod, link, mkdtemp, open, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { deflateSync, inflateSync } from 'node:zlib'
-import { appendFileSync, watch } from 'node:fs'
+import { appendFileSync } from 'node:fs'
 import { cleanFile, inspectFile } from './engine'
 import { planImage, pngCrc } from './images'
+
+const diskHooks = vi.hoisted(() => ({ onOpen: undefined as ((path: string) => void) | undefined }))
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const original = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...original,
+    async open(...args: Parameters<typeof original.open>) {
+      const handle = await original.open(...args)
+      try { diskHooks.onOpen?.(String(args[0])); return handle }
+      catch (error) { await handle.close(); throw error }
+    },
+  }
+})
 
 const encode = (value: string) => new TextEncoder().encode(value)
 function concat(...parts: Uint8Array[]) { return Buffer.concat(parts.map((part) => Buffer.from(part))) }
@@ -59,7 +72,10 @@ function video() {
   return { media, mediaStart: ftyp.length + 8, bytes: concat(ftyp, box('mdat', media), box('moov', header('mvhd'), track, box('udta', box('name', encode('Private title')), box('loci', encode('GPS private location'))))) }
 }
 let directory: string
-beforeEach(async () => { directory = await mkdtemp(join(tmpdir(), 'cleanframe-native-')) })
+beforeEach(async () => {
+  // macOS exposes /var via /private/var; match the engine's canonical parent.
+  directory = await realpath(await mkdtemp(join(tmpdir(), 'cleanframe-native-')))
+})
 afterEach(async () => { await rm(directory, { recursive: true, force: true }) })
 
 describe('native file metadata engine', () => {
@@ -182,18 +198,20 @@ describe('native file metadata engine', () => {
     const file = join(directory, 'changing.mp4'), source = video()
     await writeFile(file, source.bytes)
     let modified = false
-    const watcher = watch(directory, (_event, name) => {
-      if (!modified && name?.startsWith('.cleanframe-') && name.endsWith('.tmp')) {
+    // Change the real source immediately after the temporary file opens. OS file
+    // watchers may batch notifications until after replacement, notably on macOS.
+    diskHooks.onOpen = (openedPath) => {
+      if (!modified && openedPath.startsWith(join(directory, '.cleanframe-')) && openedPath.endsWith('.tmp')) {
         modified = true
         appendFileSync(file, 'external change')
       }
-    })
+    }
     try {
       await expect(cleanFile(file)).rejects.toThrow('alterado por outro programa')
       expect(modified).toBe(true)
       expect((await readFile(file)).equals(concat(source.bytes, encode('external change')))).toBe(true)
       expect(await readdir(directory)).toEqual(['changing.mp4'])
-    } finally { watcher.close() }
+    } finally { diskHooks.onOpen = undefined }
   })
 
   it('refuses hard links so a second path cannot retain the private original', async () => {
