@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "types": ["node"],
+    "jsx": "react-jsx"
+  },
+  "include": ["native/**/*.ts", "src/desktop/**/*.ts", "src/desktop/**/*.tsx", "vite.desktop.config.ts"]
+}

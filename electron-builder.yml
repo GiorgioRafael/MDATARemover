@@ -1,0 +1,36 @@
+appId: app.cleanframe.desktop
+productName: CleanFrame
+directories:
+  output: release
+  app: native-dist
+files:
+  - main.cjs
+  - mcp.cjs
+  - preload.cjs
+  - icon.png
+  - renderer/**
+  - package.json
+  - '!node_modules/**'
+asar: true
+npmRebuild: false
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+  signExecutable: false
+nsis:
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: true
+mac:
+  icon: build/icon.icns
+  category: public.app-category.utilities
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  hardenedRuntime: true
+  identity: '-'
+  notarize: false
+artifactName: '${productName}-${version}-${os}-${arch}.${ext}'

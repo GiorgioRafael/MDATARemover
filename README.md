@@ -1,85 +1,88 @@
 # CleanFrame
 
-Ferramenta React para inspecionar e remover metadados de imagens antes da publicação em redes sociais.
+Aplicativo para **Windows e macOS** que remove metadados de fotos e vídeos no próprio computador. Arraste os arquivos, confira os caminhos e clique em **Remover metadados**. O CleanFrame altera o arquivo original, mantém seu nome e localização e informa o resultado de cada item.
 
-## Melhoria de qualidade
+O processamento é local, sem API, conta ou upload. Não gera outra imagem nem recomprime a mídia. A interface e o controle por MCP usam o mesmo mecanismo de limpeza.
 
-Na tela inicial, escolha **2× · recomendada** ou **4× · mais resolução** em **Melhorar qualidade com IA**. A opção vale para arquivos selecionados, imagens coladas e lotes de até 100 fotos. A limpeza de metadados permanece ativa, e cada arquivo ampliado é inspecionado antes do download individual ou em ZIP. Após limpar uma imagem, também é possível selecionar uma ampliação e clicar em **Aplicar melhoria**; o processamento parte do original.
+## Instalar no Windows
 
-O site executa **Real-ESRGAN general-x4v3** no próprio navegador, com pesos oficiais e redução de ruído em 50% (equilíbrio entre textura e suavização). O modelo ONNX de 4,9 MB e o runtime são carregados apenas ao ativar o upscale. WebGPU acelera a execução quando disponível; a CPU via WebAssembly usa o mesmo modelo como alternativa, com maior tempo de processamento. As fotos não são enviadas a servidores.
+1. Abra a [página de downloads](https://github.com/GiorgioRafael/MDATARemover/releases/latest).
+2. Na seção **Assets**, baixe o arquivo `CleanFrame-<versão>-win-x64.exe`. Para um PC com Windows em ARM, escolha `win-arm64.exe`, quando disponível.
+3. Execute o instalador. Ele instala o CleanFrame para o seu usuário e cria um atalho. Depois, abra **CleanFrame** pelo menu Iniciar ou pela área de trabalho.
 
-- **2×**: inferência nativa de 4× seguida de redução por média de área para 2×.
-- **4×**: resolução nativa do modelo.
-- Blocos de 128 px com sobreposição de 34 px cobrem todo o campo receptivo da rede. A transparência é preservada com interpolação do canal alfa.
-- Saída limitada a **16 megapixels** e **8.192 px por lado**. Imagens que excedam esses limites recebem uma orientação para usar 2×, diminuir a origem ou desativar a melhoria; nenhuma foto é reduzida silenciosamente.
-- **Cancelar processamento** interrompe a inferência e libera a interface. Em lotes, os arquivos já concluídos continuam disponíveis e os restantes podem ser retomados com a mesma ampliação.
+O aplicativo distribuído já inclui tudo de que precisa. Não é necessário instalar Node.js, Python, FFmpeg ou ExifTool.
 
-A IA pode reconstruir detalhes diferentes do original. A melhora depende da imagem e não recupera informação perdida com certeza. Use a prévia para conferir o resultado. A opção começa desativada para manter a limpeza rápida de fotos que já têm resolução suficiente.
+## Instalar no macOS
 
-### Escolha do algoritmo
+1. Abra a [página de downloads](https://github.com/GiorgioRafael/MDATARemover/releases/latest).
+2. Na seção **Assets**, baixe `CleanFrame-<versão>-mac-arm64.dmg` para Apple Silicon ou `CleanFrame-<versão>-mac-x64.dmg` para Intel. Veja o tipo do seu Mac em **menu Apple → Sobre Este Mac**.
+3. Abra o `.dmg` e arraste **CleanFrame** para **Applications / Aplicativos**.
+4. Abra **CleanFrame** na pasta Aplicativos. Depois, ejete o disco de instalação.
 
-Não existe um melhor algoritmo para toda imagem e dispositivo. A escolha considera fotos com ruído/compressão, processamento local, tamanho do download e uso em lote. Foram consultadas as implementações e publicações oficiais:
+Os pacotes atuais não têm certificado de distribuição no Windows; no macOS, usam assinatura ad hoc e ainda não têm notarização. O sistema pode alertar ou bloquear a abertura. Confira a origem do download; para distribuição sem esses avisos, os pacotes precisam de assinatura de distribuição e, no Mac, notarização. A instalação e a abertura da interface no macOS precisam de validação manual em um Mac.
 
-| Alternativa | Avaliação para este site |
-| --- | --- |
-| [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) | Restauração de imagens reais; o modelo compacto `general-x4v3` permite denoising ajustável e exportação para ONNX. Escolhido pelo equilíbrio entre restauração e execução local. |
-| [ESRGAN / UpscalerJS](https://upscalerjs.com/models/available/upscaling/esrgan-thick/) | Integração pronta em JavaScript e processamento por blocos; alternativa útil, mas optamos pelo treinamento do Real-ESRGAN voltado a degradações reais. |
-| [SwinIR](https://github.com/JingyunLiang/SwinIR) e [HAT](https://github.com/XPixelGroup/HAT) | Transformers com resultados fortes de restauração; exigem avaliar modelos e custo de inferência maiores para este fluxo de navegador e lote. |
-| [PLKSR / Real-PLKSR](https://github.com/dslisleedh/PLKSR) | Arquitetura eficiente promissora; os checkpoints e a integração devem ser avaliados conforme o domínio das fotos. |
+Se ainda não houver uma release publicada para seu sistema, use a instalação pelo código abaixo.
 
-Essa é uma escolha de engenharia para este produto, não um ranking universal nem um benchmark comparativo de qualidade visual. Mais detalhes científicos no [artigo Real-ESRGAN](https://arxiv.org/abs/2107.10833). Inferência local conforme a documentação do [ONNX Runtime Web](https://onnxruntime.ai/docs/tutorials/web/).
+## Instalar pelo código com um atalho
 
-### Reproduzir o modelo
+Esta opção gera o instalador no seu computador. Requer **Node.js 24 ou superior com npm**, instalado pelo [site oficial do Node.js](https://nodejs.org/en/download), além de internet para baixar as dependências na primeira instalação.
 
-`scripts/export-upscaler.py` baixa os dois checkpoints oficiais da release `v0.2.5.0`, combina seus parâmetros conforme a configuração padrão de denoise da ferramenta original, exporta ONNX opset 17 e compara sua saída com PyTorch. O script é uma ferramenta de desenvolvimento; não é executado pelo build do site. Instale `torch`, `onnx` e `onnxruntime` em um ambiente Python separado para executá-lo.
+1. Baixe este repositório pelo botão **Code → Download ZIP** e extraia a pasta, ou clone com Git.
+2. No Windows, dê dois cliques em **[Instalar-Windows.cmd](Instalar-Windows.cmd)**.
+3. No macOS, abra **[Instalar-macOS.command](Instalar-macOS.command)**. Se o arquivo não executar diretamente, abra o Terminal na pasta extraída e rode:
 
-`public/models/provenance.json` registra URLs, hashes SHA-256, versão da arquitetura e erro máximo da comparação. A licença BSD-3-Clause acompanha o modelo em `public/models/LICENSE.txt`.
+   ```sh
+   sh ./Instalar-macOS.command
+   ```
 
-## Como funciona
+O atalho verifica o Node.js, instala as dependências com `npm ci`, compila o aplicativo e abre o instalador correspondente ao sistema. No Windows, aguarde a instalação; no Mac, arraste o aplicativo do DMG para Aplicativos. O atalho não instala o Node.js automaticamente.
 
-- Lê EXIF, XMP, IPTC, ICC e blocos de texto no navegador.
-- Exibe os campos encontrados antes da limpeza.
-- Decodifica a imagem para pixels e gera um novo JPG, PNG ou WEBP sem copiar os blocos de metadados.
-- Inspeciona novamente o arquivo final e só então libera o download.
-- Não envia imagens para servidor algum.
+Se as dependências já estiverem instaladas, o comando equivalente para gerar e abrir o instalador é:
 
-Na tela inicial, clique em **Colar imagem** ou use **Ctrl + V** (**⌘ + V** no Mac) após copiar uma imagem. Ela será identificada, inspecionada e limpa automaticamente; o resultado fica disponível em **Baixar imagem limpa**. Colar texto ou um link não importa uma imagem. Se o navegador bloquear o acesso pelo botão, use o atalho de colar. A seleção de arquivos e o arraste continuam com a etapa de limpeza manual.
-
-## Limpeza em lote
-
-Selecione ou arraste de 2 a **100 fotos** JPG, PNG ou WEBP de até **25 MB por foto**. Clique em **Limpar fotos** para acompanhar o progresso de cada arquivo. O processamento ocorre uma foto por vez no navegador. Arquivos inválidos ou falhas individuais não interrompem as demais fotos.
-
-Você pode selecionar todas de uma vez ou usar **Adicionar fotos** para montar o lote por etapas, inclusive uma foto por seleção. Arrastar novas fotos também acrescenta ao lote. As fotos anteriores e seus resultados já limpos são preservados; o ZIP é atualizado ao incluir novas imagens. **Substituir seleção** troca explicitamente todo o conjunto. O limite de 100 vale para o total acumulado.
-
-Cada resultado verificado oferece **Baixar** individualmente. O botão **Baixar todas (.zip)** reúne as fotos limpas, com nomes únicos quando houver arquivos repetidos. Fotos com erro ficam fora do ZIP e podem ser tentadas novamente quando o formato e o tamanho forem válidos. O modo em lote utiliza a limpeza de metadados, sem as transformações do laboratório.
-
-Se a melhoria de qualidade estiver ativa, ela é aplicada sequencialmente a cada foto. A ampliação fica fixa após o primeiro resultado do lote; para mudá-la, inicie um novo lote. O cancelamento mantém os resultados concluídos e permite continuar as demais fotos.
-
-## Laboratório de robustez
-
-O modo opcional de pesquisa gera amostras reproduzíveis com transformações visuais comuns (reenquadramento, rotação mínima, ajustes tonais, ruído e recompressão). Toda saída desse modo recebe a marca d'água visível `EXPERIMENTO ACADÊMICO · NÃO PUBLICAR` e um relatório com preset e semente.
-
-Esse recurso foi projetado para avaliar, em ambiente controlado, um detector próprio ou um conjunto de dados autorizado. Ele não implementa otimização adversarial contra serviços de terceiros, não consulta detectores de plataformas e não garante evasão de sistemas de moderação.
-
-## Desenvolvimento
-
-```bash
-npm install
-npm run dev
+```sh
+npm run desktop:install
 ```
 
-Para validar:
+Depois de instalado, o CleanFrame funciona **offline** e não precisa manter esta pasta de código aberta.
 
-```bash
+## Usar
+
+1. Arraste uma foto, um vídeo ou um lote para a janela; você também pode usar o seletor de arquivos.
+2. Confira os caminhos exibidos: são os arquivos que serão alterados.
+3. Clique em **Remover metadados** e acompanhe o resultado de cada arquivo.
+
+A limpeza substitui o conteúdo **no mesmo caminho** e não mantém backup. Se quiser preservar os metadados originais, faça uma cópia antes. O mecanismo prepara e verifica um arquivo temporário na mesma pasta antes da substituição; por isso, precisa de espaço livre e permissão de escrita nessa pasta.
+
+Suporta **JPG/JPEG, PNG e WebP de até 256 MB**, além de **MP4, MOV e M4V convencionais de até 2 GB**. Os dados comprimidos da imagem e os fluxos de áudio e vídeo são preservados. Informações técnicas necessárias à reprodução podem permanecer; a limpeza não altera conteúdo visível ou audível. Veja [formatos, limites e integridade da limpeza](docs/desktop.md).
+
+## Conectar por MCP
+
+Abra o aplicativo e clique em **Conectar MCP**. Copie a configuração exibida para seu cliente MCP: ela contém os caminhos corretos deste computador e usa o runtime incluído no aplicativo instalado.
+
+O servidor funciona localmente por **stdio**, sem servidor HTTP ou chave de API. Oferece `inspect_metadata`, `remove_metadata`, `remove_metadata_batch` e `supported_formats`. Consulte a [configuração e os exemplos de MCP](docs/desktop-mcp.md).
+
+## Desenvolvimento e verificação
+
+Com Node.js 24 ou superior, na pasta do repositório:
+
+```sh
+npm ci
+npm run desktop
+```
+
+Esse comando compila e abre a interface desktop sem instalar o aplicativo. Para verificar o código:
+
+```sh
+npm run desktop:check
 npm run lint
 npm test
-npm run build
 ```
 
-## Vercel
+Após `npm run desktop:build`, verifique MCP e interface com arquivos temporários reais:
 
-O projeto inclui `vercel.json`. Basta importar o repositório na Vercel; o preset Vite, o comando de build e a pasta `dist` já estão configurados.
+```sh
+node scripts/verify-mcp.mjs
+node scripts/verify-desktop.mjs
+```
 
-## Formatos e limites
-
-JPG, PNG e WEBP de até 25 MB. GIF animado e HEIC não são aceitos porque a redecodificação no navegador pode perder quadros ou não ser suportada de forma consistente.
+Para gerar pacotes sem iniciar a instalação, use `npm run desktop:package` no sistema de destino. Os arquivos ficam em `release/`. Veja os [detalhes do aplicativo desktop](docs/desktop.md) e a [documentação da versão web anterior](docs/web.md).

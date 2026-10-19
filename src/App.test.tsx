@@ -51,6 +51,31 @@ beforeEach(() => {
   vi.mocked(createImageZip).mockResolvedValue(new Blob(['zip'], { type: 'application/zip' }))
 })
 
+describe('tipo de arquivo', () => {
+  it('abre a limpeza de vídeos e permite voltar às imagens', async () => {
+    render(<App />)
+    expect(screen.getByRole('tab', { name: 'Imagens' })).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(screen.getByRole('tab', { name: 'Vídeos' }))
+    expect(await screen.findByLabelText('Selecionar vídeo')).toHaveAttribute('accept', expect.stringContaining('.mp4'))
+    expect(screen.getByRole('tab', { name: 'Vídeos' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByLabelText('Ampliação')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Colar imagem' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Imagens' }))
+    expect(screen.getByLabelText('Ampliação')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Colar imagem' })).toBeVisible()
+  })
+
+  it('permite escolher o tipo por teclado', async () => {
+    render(<App />)
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Imagens' }), { key: 'ArrowRight' })
+    await screen.findByLabelText('Selecionar vídeo')
+    expect(screen.getByRole('tab', { name: 'Vídeos' })).toHaveFocus()
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Vídeos' }), { key: 'Home' })
+    expect(screen.getByRole('tab', { name: 'Imagens' })).toHaveFocus()
+    expect(screen.getByLabelText('Ampliação')).toBeVisible()
+  })
+})
+
 describe('melhoria de qualidade', () => {
   it('aplica a ampliação escolhida na tela inicial também às imagens coladas', async () => {
     render(<App />)

@@ -8,23 +8,39 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "desktop": "npm run desktop:build && electron .",
+    "desktop:build": "npm run desktop:check && node scripts/build-desktop.mjs",
+    "desktop:check": "tsc -p tsconfig.desktop.json",
+    "desktop:package": "npm run desktop:build && electron-builder --publish never",
+    "desktop:package:win": "npm run desktop:build && electron-builder --win --x64 --publish never",
+    "desktop:package:mac": "npm run desktop:build && electron-builder --mac --publish never",
+    "desktop:install": "node scripts/install-desktop.mjs",
+    "mcp": "node native-dist/mcp.cjs",
+    "postinstall": "node node_modules/electron/install.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "exifr": "^7.1.3",
     "fflate": "^0.8.3",
     "lucide-react": "^0.544.0",
     "onnxruntime-web": "1.30.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
+    "@playwright/test": "^1.64.1",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.4",
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
     "eslint": "^9.36.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.22",
@@ -34,5 +50,8 @@
     "typescript-eslint": "^8.44.1",
     "vite": "^7.1.7",
     "vitest": "^3.2.4"
-  }
+  },
+  "main": "native-dist/main.cjs",
+  "description": "CleanFrame — limpeza local de metadados com aplicativo desktop e MCP",
+  "author": "GiorgioRafael"
 }

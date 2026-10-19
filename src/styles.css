@@ -38,6 +38,21 @@ main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; min-height: calc(1
 .intro h1 { margin: 0 0 7px; font-size: clamp(28px, 3vw, 39px); line-height: 1.15; letter-spacing: -.045em; }
 .intro p { margin: 0; color: var(--muted); font-size: 16px; }
 
+.media-tabs { display: flex; justify-content: center; gap: 5px; width: fit-content; margin: 0 auto 22px; padding: 5px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.media-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; min-width: 140px; padding: 9px 20px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--muted); font-weight: 600; font-size: 14px; cursor: pointer; }
+.media-tabs button[aria-selected="true"] { color: var(--green-900); background: white; border-color: var(--line); box-shadow: 0 2px 5px rgba(15, 61, 43, .06); }
+.media-tabs button:disabled { opacity: .65; cursor: wait; }
+.video-assurance { grid-template-columns: minmax(0, 1fr); background: var(--green-50); border-color: #cfe5d7; }
+.video-preview { display: block; width: 100%; max-height: 330px; border-radius: 9px; background: #141a17; }
+.video-preview-note, .video-technical-note { color: var(--muted); font-size: 12px; line-height: 1.55; }
+.video-file-name { overflow-wrap: anywhere; }
+.video-file-icon { flex: none; width: 64px; height: 64px; display: grid; place-items: center; color: var(--green-800); background: var(--green-100); border-radius: 9px; }
+.video-metadata-value { white-space: normal !important; overflow-wrap: anywhere; }
+.video-result-size { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.video-workspace .process-copy { padding-left: 0; padding-right: 0; }
+.video-workspace .metadata-row { padding-left: 0; }
+.video-workspace .secondary-button:disabled { opacity: .65; cursor: wait; }
+
 .dropzone { min-height: 136px; border: 1.5px dashed #b9c5c0; border-radius: 12px; background: #fbfdfc; transition: .2s ease; overflow: hidden; }
 .dropzone:hover, .dropzone.is-dragging { border-color: var(--green-700); background: var(--green-50); box-shadow: 0 10px 30px rgba(15, 61, 43, .07); }
 .dropzone input { position: absolute; opacity: 0; pointer-events: none; }

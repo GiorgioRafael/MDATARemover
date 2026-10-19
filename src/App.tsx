@@ -1,5 +1,5 @@
-import { LockKeyhole, ShieldCheck } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { Image, LockKeyhole, ShieldCheck, Video } from 'lucide-react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Brand } from './components/Brand'
 import { BatchPanel } from './components/BatchPanel'
 import { MetadataPanel } from './components/MetadataPanel'
@@ -11,7 +11,10 @@ import { inspectMetadata } from './lib/metadata'
 import { MAX_BATCH_FILES } from './lib/batch'
 import type { BatchImage, ImageInfo, ImageInspection, ProcessedImage, ProcessingOptions, ProcessingProgress } from './types'
 
+const VideoWorkspace = lazy(() => import('./components/VideoWorkspace').then((module) => ({ default: module.VideoWorkspace })))
+
 export default function App() {
+  const [mediaType, setMediaType] = useState<'image' | 'video'>('image')
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [info, setInfo] = useState<ImageInfo | null>(null)
@@ -195,14 +198,31 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="topbar-inner"><Brand /><div className="privacy-top"><LockKeyhole size={15} />Processamento local. Sua imagem não sai deste dispositivo.</div></div>
+        <div className="topbar-inner"><Brand /><div className="privacy-top"><LockKeyhole size={15} />Processamento local. Seus arquivos não saem deste dispositivo.</div></div>
       </header>
       <main>
         <section className="intro">
-          <h1>Prepare imagens limpas para publicar</h1>
-          <p>Remova metadados e melhore a resolução das suas fotos antes de publicar.</p>
+          <h1>{mediaType === 'video' ? 'Limpe seus vídeos sem perder qualidade' : 'Prepare imagens limpas para publicar'}</h1>
+          <p>{mediaType === 'video' ? 'Remova metadados de vídeos preservando a imagem e o áudio originais.' : 'Remova metadados e melhore a resolução das suas fotos antes de publicar.'}</p>
         </section>
 
+        <div className="media-tabs" role="tablist" aria-label="Tipo de arquivo" onKeyDown={(event) => {
+          if (loading || processing || batchProcessing || zipping || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+          event.preventDefault()
+          const next = event.key === 'Home' ? 'image' : event.key === 'End' ? 'video' : mediaType === 'image' ? 'video' : 'image'
+          setMediaType(next)
+          document.getElementById(`${next}-tab`)?.focus()
+        }}>
+          <button id="image-tab" type="button" role="tab" tabIndex={mediaType === 'image' ? 0 : -1} aria-selected={mediaType === 'image'} aria-controls="image-panel" onClick={() => setMediaType('image')} disabled={loading || processing || batchProcessing || zipping}><Image size={17} aria-hidden="true" />Imagens</button>
+          <button id="video-tab" type="button" role="tab" tabIndex={mediaType === 'video' ? 0 : -1} aria-selected={mediaType === 'video'} aria-controls="video-panel" onClick={() => setMediaType('video')} disabled={loading || processing || batchProcessing || zipping}><Video size={17} aria-hidden="true" />Vídeos</button>
+        </div>
+
+        {mediaType === 'video' ? (
+          <section id="video-panel" role="tabpanel" aria-labelledby="video-tab">
+            <Suspense fallback={<div className="loading-state" role="status">Preparando a limpeza de vídeos…</div>}><VideoWorkspace /></Suspense>
+          </section>
+        ) : (
+        <section id="image-panel" role="tabpanel" aria-labelledby="image-tab">
         <QualitySettings scale={processingOptions.upscale} disabled={loading || processing || batchProcessing || zipping} locked={batch.some((image) => image.status === 'done')} onChange={(upscale) => setProcessingOptions((options) => ({ ...options, upscale }))} />
         <UploadDropzone
           files={batch.length ? batch.map((image) => image.file) : file ? [file] : []}
@@ -240,6 +260,8 @@ export default function App() {
             <ShieldCheck size={20} />
             <p><strong>Privacidade por padrão.</strong> Nenhum upload, conta ou servidor. O processamento acontece inteiramente no seu navegador.</p>
           </div>
+        )}
+        </section>
         )}
       </main>
       <footer>CleanFrame · ferramenta interna para publicação segura</footer>
