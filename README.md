@@ -61,6 +61,12 @@ Abra o aplicativo e clique em **Conectar MCP**. Copie a configuração exibida p
 
 O servidor funciona localmente por **stdio**, sem servidor HTTP ou chave de API. Oferece `inspect_metadata`, `remove_metadata`, `remove_metadata_batch` e `supported_formats`. Consulte a [configuração e os exemplos de MCP](docs/desktop-mcp.md).
 
+### Skill removeMetaData para o Codex
+
+A skill [removeMetaData](.agents/skills/removeMetaData/SKILL.md) está versionada neste repositório. Ela orienta a limpeza de fotos e vídeos pelo MCP, divide listas em lotes de até 100 arquivos e verifica os resultados de cada item. Os originais são substituídos no mesmo caminho, sem recompressão; o motor usa um temporário durante a gravação segura.
+
+Com o MCP conectado, use `$removeMetaData` no Codex e informe os arquivos ou a pasta desejada. Veja as [instruções para configurar a conexão e instalar a skill para outros projetos](.agents/skills/removeMetaData/references/connection.md).
+
 ## Desenvolvimento e verificação
 
 Com Node.js 24 ou superior, na pasta do repositório:

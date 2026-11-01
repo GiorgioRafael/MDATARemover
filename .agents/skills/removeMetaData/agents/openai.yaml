@@ -1,0 +1,13 @@
+interface:
+  display_name: "removeMetaData"
+  short_description: "Limpa fotos e vídeos em lote pelo MCP CleanFrame"
+  default_prompt: "Use $removeMetaData para limpar os metadados das fotos e vídeos indicados, substituindo os originais no mesmo caminho e preservando a qualidade."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "cleanframe"
+      description: "CleanFrame local por stdio para inspecionar e remover metadados de fotos e vídeos no próprio caminho."
+
+policy:
+  allow_implicit_invocation: true
